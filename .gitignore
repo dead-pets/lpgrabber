@@ -1,0 +1,21 @@
+*.pyc
+
+# vim swap files
+.*.swp
+
+build
+dist
+lock
+
+*.egg
+.testrepository
+.tox
+.venv
+.idea
+.DS_Store
+test_run/*
+
+*.egg-info
+
+.coverage
+*.csv
