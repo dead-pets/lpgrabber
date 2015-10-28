@@ -100,7 +100,7 @@ class Bugs(Command):
             for f in text_fields:
                 s[f] = getattr(bug, f)
             for f in date_fields:
-                s[f] = getattr(bug, f)
+                s[f] = str(getattr(bug, f))
             for f in person_fields:
                 s[f] = get_user_id_by_link(getattr(bug, f + '_link'))
             if parsed_args.add_collections:
@@ -115,7 +115,7 @@ class Bugs(Command):
                 for f in bt_person_fields:
                     s[col_prefix + f] = get_user_id_by_link(getattr(bt, f + '_link'))
                 for f in bt_date_fields:
-                    s[col_prefix + f] = getattr(bt, f)
+                    s[col_prefix + f] = str(getattr(bt, f))
             return s
 
         df = pd.DataFrame()
