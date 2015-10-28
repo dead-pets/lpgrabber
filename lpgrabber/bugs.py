@@ -72,8 +72,8 @@ class Bugs(Command):
             'date_left_new', 'date_triaged']
 
         df = pd.DataFrame(columns=(
-            text_fields + person_fields + date_fields
-            + map(lambda x: x + '_size', collection_size_fields)))
+            text_fields + person_fields + date_fields +
+            map(lambda x: x + '_size', collection_size_fields)))
         ms_df = {}
 
         def collect_bug(bug):
@@ -107,7 +107,7 @@ class Bugs(Command):
                 except KeyError:
                     dfx = pd.DataFrame(columns=map(
                         lambda x: col_prefix + x,
-                        bt_text_fields + bt_person_fields))
+                        bt_text_fields + bt_person_fields + bt_date_fields))
                     ms_df[col_prefix] = dfx
                 dfx.loc[id] = float('nan')
                 for f in bt_text_fields:
@@ -117,8 +117,8 @@ class Bugs(Command):
                         dfx.loc[id][col_prefix + f] = None
                     else:
                         dfx.loc[id][col_prefix + f] = getattr(bt, f).name
-                # for f in bt_date_fields:
-                #     df.loc[id][col_prefix + f] = getattr(bug, f)
+                for f in bt_date_fields:
+                    df.loc[id][col_prefix + f] = getattr(bt, f)
 
         collection = prj.searchTasks(
             status=search_states,
