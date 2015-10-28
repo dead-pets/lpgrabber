@@ -22,7 +22,6 @@ TODO
 ----
 
 - add some speed by running requests in parallel
-- for milestone we need two filters: one for main bugtasks and one for tasks on particular series
 - basic usage instruction
 - unit tests with mocks for main cases
 - report script with pandas for Fuel

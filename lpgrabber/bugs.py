@@ -133,5 +133,24 @@ class Bugs(Command):
             df = df.append(series)
             self.log.debug("Report size is %d lines" % len(df))
 
+        if milestone:
+            series = milestone.series_target
+            # For some reason I can't get access to methods if I don't access
+            # some property before. Magic stuff
+            series.name
+            collection = series.searchTasks(
+                status=search_states,
+                milestone=milestone,
+                modified_since=parsed_args.updated_since)
+            s = len(collection)
+            self.log.info("Found %d bugs on %s series" % (s, series.name))
+            i = 0
+            for bt in collection:
+                i += 1
+                series = collect_bug(bt)
+                self.log.debug("%s: %d/%d %s" % (prj.name, i, s, series.title))
+                df = df.append(series)
+                self.log.debug("Report size is %d lines" % len(df))
+
         self.log.debug("Saving data to %s" % parsed_args.outfile)
         df.to_csv(parsed_args.outfile, encoding='utf-8')
