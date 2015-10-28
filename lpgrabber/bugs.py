@@ -26,6 +26,9 @@ class Bugs(Command):
         parser.add_argument(
             '--outfile', type=argparse.FileType('w'), default='bugs.csv',
             help='Report destination')
+        parser.add_argument(
+            '--add-collections', action='store_true',
+            help='Grab extra collections numbers')
         parser.add_argument('project', type=str, help='Project name')
         return parser
 
@@ -71,55 +74,51 @@ class Bugs(Command):
             'date_in_progress', 'date_incomplete', 'date_left_closed',
             'date_left_new', 'date_triaged']
 
-        df = pd.DataFrame(columns=(
-            text_fields + person_fields + date_fields +
-            map(lambda x: x + '_size', collection_size_fields)))
-        ms_df = {}
+        def get_user_id_by_link(link):
+            # Guess id from link in order to avoid extra network request
+            # Link looks like https://api.launchpad.net/devel/~dpyzhov
+            if link is None:
+                return None
+            return link[link.find('~')+1:]
 
-        def collect_bug(bug):
-            id = bug.id
-            if not (id in df.index):
-                df.loc[id] = float('nan')
+        def get_project_name_by_link(link):
+            # Guess project from project or series link for speedup
+            # Link looks like https://launchpad.net/fuel/3.2.x
+            # or https://launchpad.net/fuel
+            return link.split('/')[3]
+
+        def get_milestone_name_by_link(link):
+            # Save some time. Link looks like this:
+            # https://api.launchpad.net/devel/fuel/+milestone/8.0
+            if link is None:
+                return None
+            return link.split('/')[6]
+
+        def collect_bug(bug_task):
+            bug = bug_task.bug
+            s = pd.Series(name=bug.id)
             for f in text_fields:
-                df.loc[id][f] = getattr(bug, f)
+                s[f] = getattr(bug, f)
             for f in date_fields:
-                df.loc[id][f] = getattr(bug, f)
+                s[f] = getattr(bug, f)
             for f in person_fields:
-                if getattr(bug, f) is None:
-                    df.loc[id][f] = None
-                else:
-                    df.loc[id][f] = getattr(bug, f).name
-            for f in collection_size_fields:
-                df.loc[id][f + '_size'] = len(getattr(bug, f))
+                s[f] = get_user_id_by_link(getattr(bug, f + '_link'))
+            if parsed_args.add_collections:
+                for f in collection_size_fields:
+                    s[f + '_size'] = len(getattr(bug, f))
             for bt in bug.bug_tasks:
-                prj_name = 'unknown_project'
-                if bt.target.resource_type_link.endswith('#project_series'):
-                    prj_name = bt.target.project.name
-                if bt.target.resource_type_link.endswith('#project'):
-                    prj_name = bt.target.name
-                if bt.milestone is None:
-                    ms_name = 'no_milestone'
-                else:
-                    ms_name = bt.milestone.name
+                prj_name = get_project_name_by_link(bt.target_link)
+                ms_name = get_milestone_name_by_link(bt.milestone_link)
                 col_prefix = '%s_%s_' % (prj_name, ms_name)
-                try:
-                    dfx = ms_df[col_prefix]
-                except KeyError:
-                    dfx = pd.DataFrame(columns=map(
-                        lambda x: col_prefix + x,
-                        bt_text_fields + bt_person_fields + bt_date_fields))
-                    ms_df[col_prefix] = dfx
-                dfx.loc[id] = float('nan')
                 for f in bt_text_fields:
-                    dfx.loc[id][col_prefix + f] = getattr(bt, f)
+                    s[col_prefix + f] = getattr(bt, f)
                 for f in bt_person_fields:
-                    if getattr(bt, f) is None:
-                        dfx.loc[id][col_prefix + f] = None
-                    else:
-                        dfx.loc[id][col_prefix + f] = getattr(bt, f).name
+                    s[col_prefix + f] = get_user_id_by_link(getattr(bt, f + '_link'))
                 for f in bt_date_fields:
-                    df.loc[id][col_prefix + f] = getattr(bt, f)
+                    s[col_prefix + f] = getattr(bt, f)
+            return s
 
+        df = pd.DataFrame()
         collection = prj.searchTasks(
             status=search_states,
             milestone=milestone,
@@ -129,9 +128,10 @@ class Bugs(Command):
         i = 0
         for bt in collection:
             i += 1
-            self.log.debug("%s: %d/%d %s" % (prj.name, i, s, bt.bug.id))
-            collect_bug(bt.bug)
+            series = collect_bug(bt)
+            self.log.debug("%s: %d/%d %s" % (prj.name, i, s, series.title))
+            df = df.append(series)
+            self.log.debug("Report size is %d lines" % len(df))
 
-        df = pd.concat([df] + ms_df.values(), axis=1)
         self.log.debug("Saving data to %s" % parsed_args.outfile)
         df.to_csv(parsed_args.outfile, encoding='utf-8')
