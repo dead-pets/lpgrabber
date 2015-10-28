@@ -83,9 +83,7 @@ class Bugs(Command):
 
         def get_project_name_by_link(link):
             # Guess project from project or series link for speedup
-            # Link looks like https://launchpad.net/fuel/3.2.x
-            # or https://launchpad.net/fuel
-            return link.split('/')[3]
+            return link.split('/')[4]
 
         def get_milestone_name_by_link(link):
             # Save some time. Link looks like this:
@@ -134,16 +132,16 @@ class Bugs(Command):
             self.log.debug("Report size is %d lines" % len(df))
 
         if milestone:
-            series = milestone.series_target
+            lp_series = milestone.series_target
             # For some reason I can't get access to methods if I don't access
             # some property before. Magic stuff
-            series.name
-            collection = series.searchTasks(
+            lp_series.name
+            collection = lp_series.searchTasks(
                 status=search_states,
                 milestone=milestone,
                 modified_since=parsed_args.updated_since)
             s = len(collection)
-            self.log.info("Found %d bugs on %s series" % (s, series.name))
+            self.log.info("Found %d bugs on %s series" % (s, lp_series.name))
             i = 0
             for bt in collection:
                 i += 1
