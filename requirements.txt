@@ -1,3 +1,5 @@
 cliff
 pandas
 launchpadlib
+py-trello
+pygerrit
