@@ -52,8 +52,8 @@ class TrelloCmd(Command):
             '--use-labels', nargs='+',
             help='Labels for cards', default=[
                 # 'area-library', 'area-python',
-                'team-bugfix',
-                'team-enhancements', 'team-network', 'team-upgrades',
+                # 'team-bugfix',
+                # 'team-enhancements', 'team-network', 'team-upgrades',
                 'swarm-blocker', 'sla1', 'sla2', 'tricky',
                 'low-hanging-fruit', 'tech-debt'
             ]
@@ -189,16 +189,17 @@ class TrelloCmd(Command):
                 list_name = 'Won\'t Fix/Done'
             if (
                 not filter(lambda x: x.startswith('area-'), task.bug.tags) or
-                task.status in ['New'] or (
-                    not filter(lambda x: x.startswith('team-'), task.bug.tags)
-                    and 'tech-debt' not in task.bug.tags and
-                    task.status in [
-                        'New', 'Confirmed', 'Triaged', 'In Progress',
-                        'Incomplete']
-                )
+                task.status in ['New']
             ):
                 list_name = 'New/Need confirmation'
-
+            # if (
+            #     not filter(lambda x: x.startswith('team-'), task.bug.tags)
+            #     and 'tech-debt' not in task.bug.tags and
+            #     task.status in [
+            #         'New', 'Confirmed', 'Triaged', 'In Progress',
+            #         'Incomplete']
+            #     ):
+            #     list_name = 'New/Need confirmation'
             if 'blocked' in task.bug.tags:
                 list_name = 'Blocked/On hold'
             return [
@@ -210,6 +211,13 @@ class TrelloCmd(Command):
     def get_task_labels(self, task):
         bug = task.bug
         tags = list(set(bug.tags).intersection(self.tag_labels))
+        # Each bug should have either team tag or no-team tag or tech-debt tag
+        team_tags = filter(lambda x: x.startswith('team-'), bug.tags)
+        if team_tags:
+            tags += team_tags
+        else:
+            if 'tech-debt' not in bug.tags:
+                tags += ['no-team']
         # if task.importance in ['Critical', 'High']:
         #     tags.append('high-priority')
         return tags
