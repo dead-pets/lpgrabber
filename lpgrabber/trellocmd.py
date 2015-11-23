@@ -117,6 +117,12 @@ class TrelloCmd(Command):
                         name=filt['milestone'])
                 if 'assignee' in filt:
                     filt['assignee'] = self.lp.people[filt['assignee']]
+                if 'status' not in filt:
+                    filt['status'] = [
+                        'New', 'Incomplete', 'Opinion', 'Invalid',
+                        'Won\'t Fix', 'Expired', 'Confirmed', 'Triaged',
+                        'In Progress', 'Fix Committed', 'Fix Released'
+                    ]
                 self.log.debug(filt)
                 for task in prj.searchTasks(**filt):
                     self.proceed_task(task)
