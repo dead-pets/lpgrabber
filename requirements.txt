@@ -3,3 +3,4 @@ pandas
 launchpadlib
 py-trello
 pygerrit
+simplejson
