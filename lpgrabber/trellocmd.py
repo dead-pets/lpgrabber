@@ -163,9 +163,14 @@ class TrelloCmd(Command):
             [base_url, id] = rev_url.rsplit('/', 1)
             rest = GerritRestAPI(base_url)
             try:
-                review = rest.get('/changes/' + id)
+                review = rest.get('/changes/{0}/detail'.format(id))
                 if review['status'] == 'NEW':
-                    open_reviews.append(rev_url)
+                    status = []
+                    if 'rejected' in review['labels']['Workflow']:
+                        status.append('WIP')
+                    if 'disliked' in review['labels']['Verified']:
+                        status.append('FAIL')
+                    open_reviews.append({'url': rev_url, 'status': status})
                     self.log.debug("Found open review {0}".format(rev_url))
             except Exception:
                 pass
@@ -230,9 +235,10 @@ class TrelloCmd(Command):
     def proceed_task(self, task):
         self.log.debug("Processing task {0}".format(task))
         bug = task.bug
+        card_list = self.get_task_list(task)
         if str(bug.id) not in self.cards:
             self.log.debug("Creating card for bug {0}".format(bug.id))
-            card = self.get_task_list(task).add_card(
+            card = card_list.add_card(
                 'Bug {0}: {1}'.format(bug.id, bug.title),
                 bug.web_link + '\n' + bug.description)
             self.cards[bug.id] = card
@@ -243,11 +249,17 @@ class TrelloCmd(Command):
                 del self.untouched_cards[str(bug.id)]
             except KeyError:
                 pass
-            new_list = self.get_task_list(task)
             self.log.debug(
                 "Updating existing card for bug {0}," +
-                " moving to {1} list".format(bug.id, new_list))
-            card.change_list(self.get_task_list(task).id)
+                " moving to {1} list".format(bug.id, card_list))
+            card.change_list(card_list.id)
+        if card_list.name == 'In Progress/Need review':
+            review_statuses = map(
+                lambda x: "{0} {1}".format(x['url'], ':'.join(x['status'])),
+                self.get_task_reviews(task)
+            )
+            card.set_description('\n'.join(
+                [bug.web_link] + review_statuses + [bug.description]))
         tags = self.get_task_labels(task)
         for label in card.labels:
             if label.name not in tags:
