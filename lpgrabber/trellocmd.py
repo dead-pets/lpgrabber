@@ -193,10 +193,7 @@ class TrelloCmd(Command):
                 list_name = 'Fix Committed/Done'
             if task.status in ['Invalid', 'Opinion', 'Won\'t Fix']:
                 list_name = 'Won\'t Fix/Done'
-            if (
-                not filter(lambda x: x.startswith('area-'), task.bug.tags) or
-                task.status in ['New']
-            ):
+            if task.status in ['New']:
                 list_name = 'New/Need confirmation'
             # if (
             #     not filter(lambda x: x.startswith('team-'), task.bug.tags)
@@ -224,6 +221,8 @@ class TrelloCmd(Command):
         else:
             if 'tech-debt' not in bug.tags:
                 tags += ['no-team']
+        if not filter(lambda x: x.startswith('area-'), task.bug.tags):
+            tags += ['no-area']
         # if task.importance in ['Critical', 'High']:
         #     tags.append('high-priority')
         return tags
