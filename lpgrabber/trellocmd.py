@@ -248,7 +248,15 @@ class TrelloCmd(Command):
                 "Updating existing card for bug {0}," +
                 " moving to {1} list".format(bug.id, new_list))
             card.change_list(self.get_task_list(task).id)
-        for label_name in self.get_task_labels(task):
+        tags = self.get_task_labels(task)
+        for label in card.labels:
+            if label.name not in tags:
+                # delete_label is not published on pypi yet
+                # card.delete_label(label)
+                card.client.fetch_json(
+                    '/cards/' + card.id + '/idLabels/' + label.id,
+                    http_method='DELETE')
+        for label_name in tags:
             try:
                 label = [
                     l for l in self.board.get_labels()
