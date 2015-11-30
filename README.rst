@@ -55,6 +55,21 @@ Usage:
 
   lpgrabber teams search_string
 
+Remove duplicated tasks
+-----------------------
+
+Launchpad has 'development focus' series and works with it poorly. Automated tools can be misleaded about task status.
+This command removes extra tasks from bugs where possible.
+
+Usage:
+
+  lpgrabber [--open-only] killdupes [--dry-run] [--dont-delete] [--next-focus next_series]
+
+open-only - don't touch closed bugs. It is needed if you want to preserve fix dates
+
+dont-delete - Do not remove tasks. Doesn't help with duplication. Only update hidden tasks with actual status. Useful for closed tasks.
+
+next-focus - Don't delete task from current development focus if it is nominated for next development focus.
 
 Contribution
 ------------
