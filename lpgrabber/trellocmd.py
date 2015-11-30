@@ -141,6 +141,8 @@ class TrelloCmd(Command):
             for card in self.untouched_cards.values():
                 card.change_list(out_of_scope_list.id)
 
+        return 0
+
     def get_task_reviews(self, task):
         self.log.debug("Searching for reviews for task {0}".format(task))
         bug = task.bug
