@@ -51,11 +51,7 @@ class TrelloCmd(Command):
         parser.add_argument(
             '--use-labels', nargs='+',
             help='Labels for cards', default=[
-                # 'area-library', 'area-python',
-                # 'team-bugfix',
-                # 'team-enhancements', 'team-network', 'team-upgrades',
-                'swarm-blocker', 'sla1', 'sla2', 'tricky',
-                'low-hanging-fruit', 'tech-debt'
+                'tricky', 'low-hanging-fruit', 'tech-debt'
             ]
         )
         return parser
