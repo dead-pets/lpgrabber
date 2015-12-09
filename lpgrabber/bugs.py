@@ -92,6 +92,12 @@ class Bugs(Command):
                 return None
             return link.split('/')[6]
 
+        def get_bug_by_link(link):
+            # https://api.launchpad.net/devel/bugs/1523901
+            if link is None:
+                return None
+            return link.split('/')[5]
+
         def collect_bug(bug_task):
             bug = bug_task.bug
             s = pd.Series(name=bug.id)
@@ -101,6 +107,7 @@ class Bugs(Command):
                 s[f] = str(getattr(bug, f))
             for f in person_fields:
                 s[f] = get_user_id_by_link(getattr(bug, f + '_link'))
+            s['duplicates'] = get_bug_by_link(bug.duplicate_of_link)
             if parsed_args.add_collections:
                 for f in collection_size_fields:
                     s[f + '_size'] = len(getattr(bug, f))
@@ -111,7 +118,8 @@ class Bugs(Command):
                 for f in bt_text_fields:
                     s[col_prefix + f] = getattr(bt, f)
                 for f in bt_person_fields:
-                    s[col_prefix + f] = get_user_id_by_link(getattr(bt, f + '_link'))
+                    s[col_prefix + f] = get_user_id_by_link(
+                        getattr(bt, f + '_link'))
                 for f in bt_date_fields:
                     s[col_prefix + f] = str(getattr(bt, f))
             return s
@@ -120,7 +128,8 @@ class Bugs(Command):
         collection = prj.searchTasks(
             status=search_states,
             milestone=milestone,
-            modified_since=parsed_args.updated_since)
+            modified_since=parsed_args.updated_since,
+            omit_duplicates=False)
         s = len(collection)
         self.log.info("Found %d bugs" % s)
         i = 0

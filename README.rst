@@ -94,3 +94,4 @@ Here is the list of future plans. Not all of them will be implemented:
 - archive default lists and delete labels during board creation
 - enhance card description with status, age, last update date, detailed review status
 - user and developer friendly error handling
+- do not exclude duplicate bugs from report
