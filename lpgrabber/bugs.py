@@ -148,7 +148,8 @@ class Bugs(Command):
             collection = lp_series.searchTasks(
                 status=search_states,
                 milestone=milestone,
-                modified_since=parsed_args.updated_since)
+                modified_since=parsed_args.updated_since,
+                omit_duplicates=False)
             s = len(collection)
             self.log.info("Found %d bugs on %s series" % (s, lp_series.name))
             i = 0
