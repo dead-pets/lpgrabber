@@ -230,6 +230,25 @@ class TrelloCmd(Command):
         #     tags.append('high-priority')
         return tags
 
+    def get_card_title(self, task):
+        bug = task.bug
+        assignee_id = "unassigned"
+        if task.assignee_link is not None:
+            assignee_id = task.assignee_link.split('~')[-1]
+        return 'Bug {0} ({1}): {2}'.format(bug.id, assignee_id, bug.title)
+
+    def get_card_description(self, task, card_list):
+        bug = task.bug
+        desc = "Created by {0}\n".format(task.owner_link.split('~')[-1])
+        desc += bug.web_link + "\n"
+        if card_list.name == 'In Progress/Need review':
+            desc += "Reviews:\n".join(map(
+                lambda x: "{0} {1}".format(x['url'], ':'.join(x['status'])),
+                self.get_task_reviews(task)
+            )) + "\n"
+        desc += "\n----------\n" + bug.description
+        return desc
+
     def proceed_task(self, task):
         self.log.debug("Processing task {0}".format(task))
         bug = task.bug
@@ -237,8 +256,8 @@ class TrelloCmd(Command):
         if str(bug.id) not in self.cards:
             self.log.debug("Creating card for bug {0}".format(bug.id))
             card = card_list.add_card(
-                'Bug {0}: {1}'.format(bug.id, bug.title),
-                bug.web_link + '\n' + bug.description)
+                self.get_card_title(task),
+                self.get_card_description(task, card_list))
             self.cards[bug.id] = card
         else:
             self.log.debug("Getting card for task {0}".format(task))
@@ -251,13 +270,8 @@ class TrelloCmd(Command):
                 "Updating existing card for bug {0}," +
                 " moving to {1} list".format(bug.id, card_list))
             card.change_list(card_list.id)
-        if card_list.name == 'In Progress/Need review':
-            review_statuses = map(
-                lambda x: "{0} {1}".format(x['url'], ':'.join(x['status'])),
-                self.get_task_reviews(task)
-            )
-            card.set_description('\n'.join(
-                [bug.web_link] + review_statuses + [bug.description]))
+            card.set_name(self.get_card_title(task))
+            card.set_description(self.get_card_description(task, card_list))
         tags = self.get_task_labels(task)
         for label in card.labels:
             if label.name not in tags:
