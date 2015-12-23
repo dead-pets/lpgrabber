@@ -19,3 +19,4 @@ test_run/*
 
 .coverage
 *.csv
+reports/.ipynb_checkpoints
