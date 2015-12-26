@@ -7,6 +7,8 @@ from launchpadlib.launchpad import Launchpad
 from pygerrit.rest import GerritRestAPI
 from trello import TrelloClient
 
+from scheduler import Scheduler
+
 
 class TrelloCmd(Command):
     "Update trello board from launchpad filters"
@@ -103,6 +105,7 @@ class TrelloCmd(Command):
                         "Killing duplicate card for bug {0}".format(bug_id))
                     card.delete()
 
+        task_urls = []
         for prj_name in parsed_args.project:
             prj = self.lp.projects[prj_name]
             for f in parsed_args.filter:
@@ -121,22 +124,29 @@ class TrelloCmd(Command):
                     ]
                 self.log.debug(filt)
                 for task in prj.searchTasks(**filt):
-                    self.proceed_task(task)
+                    task_urls.append(task._wadl_resource.url)
                 for series in prj.series:
                     self.log.debug(str(prj.name) + ":" + str(series.name))
                     for task in series.searchTasks(**filt):
-                        self.proceed_task(task)
+                        task_urls.append(task._wadl_resource.url)
+        self.bt_tag = task._wadl_resource.tag
+        Scheduler().run(self.proceed_task, set(task_urls))
+        touched_cards_ids = [x.split('/')[-1] for x in set(task_urls)]
+        for bug_id in touched_cards_ids:
+            del self.untouched_cards[bug_id]
 
         if self.untouched_cards:
             try:
-                out_of_scope_list = [
+                self.out_of_scope_list = [
                     list for list in self.board.open_lists()
                     if list.name == 'Trash/Out of scope'][0]
             except IndexError:
-                out_of_scope_list = self.board.add_list('Trash/Out of scope')
-            for card in self.untouched_cards.values():
-                card.change_list(out_of_scope_list.id)
-
+                self.out_of_scope_list = self.board.add_list(
+                    'Trash/Out of scope')
+            Scheduler().run(
+                self.move_out_of_scope,
+                self.untouched_cards.values(),
+                processes=4)
         return 0
 
     def get_task_reviews(self, task):
@@ -249,7 +259,11 @@ class TrelloCmd(Command):
         desc += "\n----------\n" + bug.description
         return desc
 
-    def proceed_task(self, task):
+    def proceed_task(self, lp, item):
+        from lazr.restfulclient.resource import Resource
+        from wadllib.application import Resource as WadlResource
+        wadl = WadlResource(lp._wadl_resource.application, item, self.bt_tag)
+        task = Resource(lp, wadl)
         self.log.debug("Processing task {0}".format(task))
         bug = task.bug
         card_list = self.get_task_list(task)
@@ -262,10 +276,6 @@ class TrelloCmd(Command):
         else:
             self.log.debug("Getting card for task {0}".format(task))
             card = self.cards[str(bug.id)]
-            try:
-                del self.untouched_cards[str(bug.id)]
-            except KeyError:
-                pass
             self.log.debug(
                 "Updating existing card for bug {0}," +
                 " moving to {1} list".format(bug.id, card_list))
@@ -292,3 +302,6 @@ class TrelloCmd(Command):
             except Exception:
                 pass
         self.log.debug(task)
+
+    def move_out_of_scope(self, lp, item):
+        item.change_list(self.out_of_scope_list.id)
