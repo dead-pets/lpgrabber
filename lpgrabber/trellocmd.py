@@ -105,6 +105,7 @@ class TrelloCmd(Command):
                         "Killing duplicate card for bug {0}".format(bug_id))
                     card.delete()
 
+        self.log.info("Searching for bugtasks")
         task_urls = []
         for prj_name in parsed_args.project:
             prj = self.lp.projects[prj_name]
@@ -124,16 +125,21 @@ class TrelloCmd(Command):
                     ]
                 self.log.debug(filt)
                 for task in prj.searchTasks(**filt):
+                    self.log.info("Found bugtask {0}".format(task.title))
                     task_urls.append(task._wadl_resource.url)
                 for series in prj.series:
                     self.log.debug(str(prj.name) + ":" + str(series.name))
                     for task in series.searchTasks(**filt):
+                        self.log.info("Found bugtask {0}".format(task.title))
                         task_urls.append(task._wadl_resource.url)
         self.bt_tag = task._wadl_resource.tag
+        self.log.info("Moving cards for found bugtasks")
         Scheduler().run(self.proceed_task, set(task_urls))
+        self.log.info("Moving untouched cards to trash")
         touched_cards_ids = [x.split('/')[-1] for x in set(task_urls)]
         for bug_id in touched_cards_ids:
-            del self.untouched_cards[bug_id]
+            if bug_id in self.untouched_cards:
+                del self.untouched_cards[bug_id]
 
         if self.untouched_cards:
             try:
@@ -264,7 +270,7 @@ class TrelloCmd(Command):
         from wadllib.application import Resource as WadlResource
         wadl = WadlResource(lp._wadl_resource.application, item, self.bt_tag)
         task = Resource(lp, wadl)
-        self.log.debug("Processing task {0}".format(task))
+        self.log.info("Moving task {0}".format(task))
         bug = task.bug
         card_list = self.get_task_list(task)
         if str(bug.id) not in self.cards:
@@ -304,4 +310,5 @@ class TrelloCmd(Command):
         self.log.debug(task)
 
     def move_out_of_scope(self, lp, item):
+        self.log.info("Moving card {0} out of scope".format(item))
         item.change_list(self.out_of_scope_list.id)
