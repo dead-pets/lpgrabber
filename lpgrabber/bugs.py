@@ -64,7 +64,7 @@ class Bugs(Command):
         collection_size_fields = [
             'activity_collection', 'attachments_collection',
             'bug_tasks_collection', 'bug_watches_collection',
-            'cves_collection']
+            'messages_collection', 'cves_collection']
 
         bt_text_fields = ['importance', 'status', 'is_complete']
         bt_person_fields = ['assignee']
