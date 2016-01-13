@@ -1,6 +1,7 @@
 from launchpadlib.launchpad import Launchpad
 from multiprocessing import JoinableQueue
 from multiprocessing import Process
+from time import sleep
 
 
 class Scheduler(object):
@@ -10,7 +11,15 @@ class Scheduler(object):
         for item in iter(self.input_queue.get, None):
             if item is None:
                 break
-            self.output_queue.put(self.command(lp=lp, item=item))
+            for i in xrange(3):
+                try:
+                    r = self.command(lp=lp, item=item)
+                except Exception:
+                    sleep(0.5)
+                    continue
+                break
+            if 'r' in vars():
+                self.output_queue.put(r)
             self.input_queue.task_done()
         self.input_queue.task_done()
 
