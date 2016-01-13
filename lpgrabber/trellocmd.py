@@ -239,7 +239,7 @@ class TrelloCmd(Command):
 
     def get_card_description(self, task, card_list):
         bug = task.bug
-        desc = "Created by {0}\n".format(task.owner_link.split('~')[-1])
+        desc = "Created by {0}\n".format(bug.owner_link.split('~')[-1])
         desc += bug.web_link + "\n"
         if card_list.name == 'In Progress/Need review':
             desc += "Reviews:\n".join(map(
@@ -270,8 +270,12 @@ class TrelloCmd(Command):
                 "Updating existing card for bug {0}," +
                 " moving to {1} list".format(bug.id, card_list))
             card.change_list(card_list.id)
-            card.set_name(self.get_card_title(task))
-            card.set_description(self.get_card_description(task, card_list))
+            new_name = self.get_card_title(task)
+            if new_name != card.name:
+                card.set_name(new_name)
+            new_desc = self.get_card_description(task, card_list)
+            if new_desc != card.description:
+                card.set_description(new_desc)
         tags = self.get_task_labels(task)
         for label in card.labels:
             if label.name not in tags:
