@@ -242,7 +242,7 @@ class TrelloCmd(Command):
         desc = "Created by {0}\n".format(bug.owner_link.split('~')[-1])
         desc += bug.web_link + "\n"
         if card_list.name == 'In Progress/Need review':
-            desc += "Reviews:\n".join(map(
+            desc += "Reviews:\n" + "\n".join(map(
                 lambda x: "{0} {1}".format(x['url'], ':'.join(x['status'])),
                 self.get_task_reviews(task)
             )) + "\n"
