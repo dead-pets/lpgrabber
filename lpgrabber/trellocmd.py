@@ -153,9 +153,9 @@ class TrelloCmd(Command):
                 continue
             for g in gerrits:
                 reviews += re.findall(g + '\d+', msg.content)
-                long_reviews = re.findall(g + '#/c/\d+/', msg.content)
+                long_reviews = re.findall(g + '#/c/\d+', msg.content)
                 for u in long_reviews:
-                    reviews += [u.replace('#/c/', '').rstrip('/')]
+                    reviews += [u.replace('#/c/', '')]
         open_reviews = []
         for rev_url in set(reviews):
             [base_url, id] = rev_url.rsplit('/', 1)
