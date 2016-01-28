@@ -235,7 +235,7 @@ class TrelloCmd(Command):
         assignee_id = "unassigned"
         if task.assignee_link is not None:
             assignee_id = task.assignee_link.split('~')[-1]
-        return 'Bug {0} ({1}): {2}'.format(bug.id, assignee_id, bug.title)
+        return 'Bug {0} ({1}): {2}'.format(bug.id, assignee_id, bug.title)[:200]
 
     def get_card_description(self, task, card_list):
         bug = task.bug
@@ -247,7 +247,7 @@ class TrelloCmd(Command):
                 self.get_task_reviews(task)
             )) + "\n"
         desc += "\n----------\n" + bug.description
-        return desc
+        return desc[:1000]
 
     def proceed_task(self, task):
         self.log.debug("Processing task {0}".format(task))
