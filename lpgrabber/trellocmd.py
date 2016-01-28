@@ -58,7 +58,7 @@ class TrelloCmd(Command):
 
     def take_action(self, parsed_args):
         err_count = 0
-        self.log.debug('connecting to Launchpad')
+        self.log.info('Connecting to Launchpad')
         self.lp = Launchpad.login_with(
             'lp-report-bot', 'production', version='devel')
         self.tr = TrelloClient(
@@ -66,7 +66,6 @@ class TrelloCmd(Command):
             api_secret=parsed_args.trello_secret,
             token=parsed_args.trello_token,
             token_secret=parsed_args.trello_token_secret)
-        self.log.debug(self.tr.list_boards())
         try:
             self.board = [
                 board for board in self.tr.list_boards()
@@ -86,7 +85,7 @@ class TrelloCmd(Command):
                 raise Exception(
                     "Board {0} doesn't exist. Use --create-board argument" +
                     " in order to create it".format(parsed_args.board))
-        self.log.debug(self.board)
+        self.log.info("Working with board {0}".format(self.board))
         self.tag_labels = parsed_args.use_labels
         self.cards = dict()
         self.untouched_cards = dict()
@@ -103,6 +102,8 @@ class TrelloCmd(Command):
                     self.log.info(
                         "Killing duplicate card for bug {0}".format(bug_id))
                     card.delete()
+        self.log.info("Found {0} existing cards".format(
+            len(self.untouched_cards)))
 
         for prj_name in parsed_args.project:
             prj = self.lp.projects[prj_name]
@@ -121,11 +122,31 @@ class TrelloCmd(Command):
                         'In Progress', 'Fix Committed', 'Fix Released'
                     ]
                 self.log.debug(filt)
+                self.log.info("Searching for tasks in project %s" % prj_name)
                 for task in prj.searchTasks(**filt):
-                    self.proceed_task(task)
+                    self.log.info("Proceeding task %s" % task)
+                    retries = 3
+                    for i in range(retries):
+                        try:
+                            self.proceed_task(task)
+                        except Exception as e:
+                            if i < retries:
+                                self.log.exception(e)
+                                self.log.warning(
+                                    "Got an exception for task %s, retrying"
+                                    % task)
+                                continue
+                            else:
+                                self.log.exception(e)
+                                self.log.warning(
+                                    "Failed to proceed task %s" % task)
+                                err_count += 1
+                        break
                 for series in prj.series:
-                    self.log.debug(str(prj.name) + ":" + str(series.name))
+                    self.log.info("Searching for tasks in {0}:{1}".format(
+                        str(prj.name), str(series.name)))
                     for task in series.searchTasks(**filt):
+                        self.log.info("Proceeding task %s" % task)
                         retries = 3
                         for i in range(retries):
                             try:
@@ -141,7 +162,8 @@ class TrelloCmd(Command):
                             break
 
         if self.untouched_cards:
-            self.log.info("Moving cards out of scope")
+            self.log.info("Moving %d cards out of scope" % len(
+                self.untouched_cards))
             try:
                 out_of_scope_list = [
                     list for list in self.board.open_lists()
