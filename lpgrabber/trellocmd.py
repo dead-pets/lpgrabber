@@ -57,6 +57,7 @@ class TrelloCmd(Command):
         return parser
 
     def take_action(self, parsed_args):
+        err_count = 0
         self.log.debug('connecting to Launchpad')
         self.lp = Launchpad.login_with(
             'lp-report-bot', 'production', version='devel')
@@ -125,9 +126,22 @@ class TrelloCmd(Command):
                 for series in prj.series:
                     self.log.debug(str(prj.name) + ":" + str(series.name))
                     for task in series.searchTasks(**filt):
-                        self.proceed_task(task)
+                        retries = 3
+                        for i in range(retries):
+                            try:
+                                self.proceed_task(task)
+                            except Exception as e:
+                                if i < retries:
+                                    continue
+                                else:
+                                    self.log.exception(e)
+                                    self.log.warning(
+                                        "Failed to proceed task %s" % task)
+                                    err_count += 1
+                            break
 
         if self.untouched_cards:
+            self.log.info("Moving cards out of scope")
             try:
                 out_of_scope_list = [
                     list for list in self.board.open_lists()
@@ -137,6 +151,9 @@ class TrelloCmd(Command):
             for card in self.untouched_cards.values():
                 card.change_list(out_of_scope_list.id)
 
+        self.log.info("Finished with %d errors" % err_count)
+        if err_count > 0:
+            return 1
         return 0
 
     def get_task_reviews(self, task):
@@ -235,7 +252,8 @@ class TrelloCmd(Command):
         assignee_id = "unassigned"
         if task.assignee_link is not None:
             assignee_id = task.assignee_link.split('~')[-1]
-        return 'Bug {0} ({1}): {2}'.format(bug.id, assignee_id, bug.title)[:200]
+        return 'Bug {0} ({1}): {2}'.format(
+            bug.id, assignee_id, bug.title)[:200]
 
     def get_card_description(self, task, card_list):
         bug = task.bug
