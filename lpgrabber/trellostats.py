@@ -35,6 +35,7 @@ class TrelloStats(Command):
         return parser
 
     def take_action(self, parsed_args):
+        logging.getLogger("requests").setLevel(logging.WARNING)
         self.tr = TrelloClient(
             api_key=parsed_args.trello_key,
             api_secret=parsed_args.trello_secret,
