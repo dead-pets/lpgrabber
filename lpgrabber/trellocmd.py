@@ -285,8 +285,9 @@ class TrelloCmd(Command):
             except KeyError:
                 pass
             self.log.debug(
-                "Updating existing card for bug {0}," +
-                " moving to {1} list".format(bug.id, card_list))
+                (
+                    "Updating existing card for bug {0}, moving to {1} list"
+                ).format(bug.id, card_list))
             card.change_list(card_list.id)
             new_name = self.get_card_title(task)
             if new_name != card.name:
