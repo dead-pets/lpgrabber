@@ -252,7 +252,7 @@ class TrelloCmd(Command):
         assignee_id = "unassigned"
         if task.assignee_link is not None:
             assignee_id = task.assignee_link.split('~')[-1]
-        return 'Bug {0} ({1}): {2}'.format(
+        return u'Bug {0} ({1}): {2}'.format(
             bug.id, assignee_id, bug.title)[:200]
 
     def get_card_description(self, task, card_list):
@@ -261,7 +261,7 @@ class TrelloCmd(Command):
         desc += bug.web_link + "\n"
         if card_list.name == 'In Progress/Need review':
             desc += "Reviews:\n" + "\n".join(map(
-                lambda x: "{0} {1}".format(x['url'], ':'.join(x['status'])),
+                lambda x: u"{0} {1}".format(x['url'], ':'.join(x['status'])),
                 self.get_task_reviews(task)
             )) + "\n"
         desc += "\n----------\n" + bug.description
