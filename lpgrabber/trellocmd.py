@@ -58,6 +58,7 @@ class TrelloCmd(Command):
 
     def take_action(self, parsed_args):
         err_count = 0
+        logging.getLogger("requests").setLevel(logging.WARNING)
         self.log.info('Connecting to Launchpad')
         self.lp = Launchpad.login_with(
             'lp-report-bot', 'production', version='devel')
