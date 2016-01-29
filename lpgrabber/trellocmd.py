@@ -313,7 +313,7 @@ class TrelloCmd(Command):
                 ).format(bug.id, card_list))
             card.change_list(card_list.id)
             new_name = self.get_card_title(task)
-            if new_name != card.name:
+            if new_name != card.name.decode('utf-8'):
                 card.set_name(new_name)
             new_desc = self.get_card_description(task, card_list)
             if new_desc != card.description:
