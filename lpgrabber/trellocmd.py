@@ -163,7 +163,7 @@ class TrelloCmd(Command):
                             break
 
         if self.untouched_cards:
-            self.log.info("Moving %d cards out of scope" % len(
+            self.log.info("%d cards are out of scope" % len(
                 self.untouched_cards))
             try:
                 out_of_scope_list = [
