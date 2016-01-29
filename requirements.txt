@@ -4,3 +4,4 @@ launchpadlib
 py-trello
 pygerrit
 simplejson
+requests[security]
