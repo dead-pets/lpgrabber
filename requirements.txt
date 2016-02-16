@@ -5,3 +5,4 @@ py-trello
 pygerrit
 simplejson
 requests[security]
+keyring<5.7
