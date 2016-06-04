@@ -3,18 +3,19 @@ import logging
 import re
 
 from cliff.command import Command
-from launchpadlib.launchpad import Launchpad
-from pygerrit.rest import GerritRestAPI
-from trello import TrelloClient
+
+from lpgrabber.exceptions import CommandError
+from lpgrabber.utils.trello import add_trello_auth_arguments
+from lpgrabber.utils.trello import get_trello_board
 
 
-class TrelloCmd(Command):
-    "Update trello board from launchpad filters"
+class TrelloSync(Command):
+    """Update trello board from launchpad filters"""
 
     log = logging.getLogger(__name__)
 
     def get_parser(self, prog_name):
-        parser = super(TrelloCmd, self).get_parser(prog_name)
+        parser = super(TrelloSync, self).get_parser(prog_name)
         parser.add_argument(
             '--filter', type=str, action='append', required=True,
             help="List of params for searchTasks",
@@ -28,23 +29,6 @@ class TrelloCmd(Command):
             help="Trello board name"
         )
         parser.add_argument(
-            '--trello-key', type=str, required=False,
-            help="You can get one at https://trello.com/app-key"
-        )
-        parser.add_argument(
-            '--trello-secret', type=str, required=False,
-            help="You can get one at https://trello.com/app-key"
-        )
-        parser.add_argument(
-            '--trello-token', type=str, required=False,
-            help="You can get one at https://trello.com/1/connect?" +
-                 "key=YOUR_TRELLO_KEY&name=bugfix-app&response_type=token&" +
-                 "scope=read,write&expiration=never"
-        )
-        parser.add_argument(
-            '--trello-token-secret', type=str, required=False,
-        )
-        parser.add_argument(
             '--create-board', action='store_true',
             help='Create Trello board if not exists'
         )
@@ -54,38 +38,18 @@ class TrelloCmd(Command):
                 'tricky', 'low-hanging-fruit', 'tech-debt'
             ]
         )
-        return parser
+        return add_trello_auth_arguments(parser)
 
     def take_action(self, parsed_args):
         err_count = 0
         logging.getLogger("requests").setLevel(logging.WARNING)
         self.log.info('Connecting to Launchpad')
-        self.lp = Launchpad.login_with(
-            'lp-report-bot', 'production', version='devel')
-        self.tr = TrelloClient(
-            api_key=parsed_args.trello_key,
-            api_secret=parsed_args.trello_secret,
-            token=parsed_args.trello_token,
-            token_secret=parsed_args.trello_token_secret)
         try:
-            self.board = [
-                board for board in self.tr.list_boards()
-                if board.name == parsed_args.board
-            ][0]
+            self.board = get_trello_board(self.tr, parsed_args.board, True)
         except IndexError:
-            if parsed_args.create_board:
-                self.board = self.tr.add_board(parsed_args.board)
-                # for label in self.board.all_lists():
-                #    #label.delete()
-                #    #                    self.client.fetch_json(
-                #    #            '/cards/' + self.id,
-                #    #            http_method='DELETE')
-                for list in self.board.open_lists():
-                    list.close()
-            else:
-                raise Exception(
-                    "Board {0} doesn't exist. Use --create-board argument" +
-                    " in order to create it".format(parsed_args.board))
+            raise CommandError(
+                "Board {0} doesn't exist. Use --create-board argument" +
+                " in order to create it".format(parsed_args.board))
         self.log.info("Working with board {0}".format(self.board))
         self.tag_labels = parsed_args.use_labels
         self.cards = dict()
@@ -108,6 +72,7 @@ class TrelloCmd(Command):
 
         for prj_name in parsed_args.project:
             prj = self.lp.projects[prj_name]
+            # TODO(dpyzhov): try to replace several cycles with one izip
             for f in parsed_args.filter:
                 self.log.debug(f)
                 filt = json.loads(f)
@@ -179,117 +144,6 @@ class TrelloCmd(Command):
             return 1
         return 0
 
-    def get_task_reviews(self, task):
-        self.log.debug("Searching for reviews for task {0}".format(task))
-        bug = task.bug
-        gerrits = [
-            'https://review.openstack.org/', 'https://review.fuel-infra.org/']
-        reviews = []
-        # Message number 0 is description
-        is_description = True
-        for msg in bug.messages:
-            if is_description:
-                is_description = False
-                continue
-            for g in gerrits:
-                reviews += re.findall(g + '\d+', msg.content)
-                long_reviews = re.findall(g + '#/c/\d+', msg.content)
-                for u in long_reviews:
-                    reviews += [u.replace('#/c/', '')]
-        open_reviews = []
-        for rev_url in set(reviews):
-            [base_url, id] = rev_url.rsplit('/', 1)
-            rest = GerritRestAPI(base_url)
-            try:
-                review = rest.get('/changes/{0}/detail'.format(id))
-                if review['status'] == 'NEW':
-                    status = []
-                    if 'rejected' in review['labels']['Workflow']:
-                        status.append('WIP')
-                    if 'disliked' in review['labels']['Verified']:
-                        status.append('FAIL')
-                    open_reviews.append({'url': rev_url, 'status': status})
-                    self.log.debug("Found open review {0}".format(rev_url))
-            except Exception:
-                pass
-
-        return open_reviews
-
-    def get_task_list(self, task):
-        list_name = 'Bad Status'
-        try:
-            if task.status in ['Confirmed']:
-                if task.assignee is None or task.assignee.is_team:
-                    list_name = 'Inbox/Need triage'
-                else:
-                    list_name = 'Assigned/Investigating'
-            if task.status in ['Incomplete']:
-                list_name = 'Incomplete/Need more info'
-            if task.status in ['Triaged']:
-                list_name = 'Triaged/Ready to be fixed'
-            if task.status in ['In Progress']:
-                if self.get_task_reviews(task):
-                    list_name = 'In Progress/Need review'
-                else:
-                    list_name = 'In Progress/Working on fix'
-            if task.status in ['Fix Committed', 'Fix Released']:
-                list_name = 'Fix Committed/Done'
-            if task.status in ['Invalid', 'Opinion', 'Won\'t Fix']:
-                list_name = 'Won\'t Fix/Done'
-            if task.status in ['New']:
-                list_name = 'New/Need confirmation'
-            # if (
-            #     not filter(lambda x: x.startswith('team-'), task.bug.tags)
-            #     and 'tech-debt' not in task.bug.tags and
-            #     task.status in [
-            #         'New', 'Confirmed', 'Triaged', 'In Progress',
-            #         'Incomplete']
-            #     ):
-            #     list_name = 'New/Need confirmation'
-            if 'blocked' in task.bug.tags:
-                list_name = 'Blocked/On hold'
-            return [
-                list for list in self.board.open_lists()
-                if list.name == list_name][0]
-        except IndexError:
-            return self.board.add_list(list_name)
-
-    def get_task_labels(self, task):
-        bug = task.bug
-        tags = list(set(bug.tags).intersection(self.tag_labels))
-        # Each bug should have either team tag or no-team tag or tech-debt tag
-        team_tags = filter(lambda x: x.startswith('team-'), bug.tags)
-        if team_tags:
-            tags += team_tags
-        else:
-            if 'tech-debt' not in bug.tags:
-                tags += ['no-team']
-        if not filter(lambda x: x.startswith('area-'), task.bug.tags):
-            tags += ['no-area']
-        # if task.importance in ['Critical', 'High']:
-        #     tags.append('high-priority')
-        return tags
-
-    def get_card_title(self, task):
-        bug = task.bug
-        assignee_id = "unassigned"
-        if task.assignee_link is not None:
-            assignee_id = task.assignee_link.split('~')[-1]
-        return u'Bug {0} ({1}): {2}'.format(
-            bug.id, assignee_id, bug.title)[:200]
-
-    def get_card_description(self, task, card_list):
-        bug = task.bug
-        desc = "Created by {0}\n".format(bug.owner_link.split('~')[-1])
-        desc += bug.web_link + "\n"
-        if card_list.name == 'In Progress/Need review':
-            desc += "Reviews:\n" + "\n".join(map(
-                lambda x: u"{0} {1}".format(x['url'], ':'.join(x['status'])),
-                self.get_task_reviews(task)
-            )) + "\n"
-        desc += "\n----------\n" + bug.description
-        return desc[:1000]
-
     def proceed_task(self, task):
         self.log.debug("Processing task {0}".format(task))
         bug = task.bug
@@ -299,7 +153,7 @@ class TrelloCmd(Command):
             card = card_list.add_card(
                 self.get_card_title(task),
                 self.get_card_description(task, card_list))
-            self.cards[bug.id] = card
+            self.cards[str(bug.id)] = card
         else:
             self.log.debug("Getting card for task {0}".format(task))
             card = self.cards[str(bug.id)]
