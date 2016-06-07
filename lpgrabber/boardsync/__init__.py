@@ -7,6 +7,7 @@ class BoardSync(object):
         for task in self.tracker.tasks.values():
             self.board.clone_card(convert_task_to_card(task))
 
+
     @classmethod
     def update_argparse(cls, parser):
         parser.add_argument(
