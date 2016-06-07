@@ -5,7 +5,6 @@ from cliff.command import Command
 from trello import TrelloClient
 
 from lpgrabber.exceptions import CommandError
-from lpgrabber.utils.trello import add_trello_auth_arguments
 from lpgrabber.utils.trello import get_trello_board
 
 
@@ -19,7 +18,7 @@ class TrelloStats(Command):
             '--board', type=str, required=True,
             help="Trello board name"
         )
-        return add_trello_auth_arguments(parser)
+        return parser
 
     def take_action(self, parsed_args):
         logging.getLogger("requests").setLevel(logging.WARNING)

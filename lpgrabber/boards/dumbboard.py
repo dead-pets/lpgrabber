@@ -15,6 +15,10 @@ class DumbBoard(object):
     def get_card(self, id):
         return self.cards[id]
 
+    @classmethod
+    def update_argparse(cls, parser):
+        return parser
+
 
 class DumbBoardCard(object):
     def __init__(self, id, title, status='New', assignee=None):

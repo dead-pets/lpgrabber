@@ -4,8 +4,10 @@ import re
 
 from cliff.command import Command
 
+from lpgrabber.boards.dumbboard import DumbBoard
+from lpgrabber.boardsync import BoardSync
+from lpgrabber.bugtrackers.dumbtracker import DumbTracker
 from lpgrabber.exceptions import CommandError
-from lpgrabber.utils.trello import add_trello_auth_arguments
 from lpgrabber.utils.trello import get_trello_board
 
 
@@ -13,32 +15,16 @@ class TrelloSync(Command):
     """Update trello board from launchpad filters"""
 
     log = logging.getLogger(__name__)
+    bugtracker_driver = DumbTracker
+    board_driver = DumbBoard
+    boardsync_driver = BoardSync
 
     def get_parser(self, prog_name):
         parser = super(TrelloSync, self).get_parser(prog_name)
-        parser.add_argument(
-            '--filter', type=str, action='append', required=True,
-            help="List of params for searchTasks",
-        )
-        parser.add_argument(
-            '--project', type=str, action='append', required=True,
-            help="Project"
-        )
-        parser.add_argument(
-            '--board', type=str, required=True,
-            help="Trello board name"
-        )
-        parser.add_argument(
-            '--create-board', action='store_true',
-            help='Create Trello board if not exists'
-        )
-        parser.add_argument(
-            '--use-labels', nargs='+',
-            help='Labels for cards', default=[
-                'tricky', 'low-hanging-fruit', 'tech-debt'
-            ]
-        )
-        return add_trello_auth_arguments(parser)
+        self.bugtracker_driver.update_argparse(parser)
+        self.board_driver.update_argparse(parser)
+        self.boardsync_driver.update_argparse(parser)
+        return parser
 
     def take_action(self, parsed_args):
         err_count = 0

@@ -9,6 +9,10 @@ class DumbTracker(object):
         for t in self.tasks:
             yield t
 
+    @classmethod
+    def update_argparse(cls, parser):
+        return parser
+
 
 class DumbTrackerTask(object):
     def __init__(self, id, title, status='New', assignee=None):

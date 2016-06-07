@@ -12,6 +12,18 @@ class LaunchpadTracker(object):
         for prj_name in filter['projects']:
             pass
 
+    @classmethod
+    def update_argparse(cls, parser):
+        parser.add_argument(
+            '--filter', type=str, action='append', required=True,
+            help="List of params for searchTasks",
+        )
+        parser.add_argument(
+            '--project', type=str, action='append', required=True,
+            help="Project"
+        )
+        return parser
+
 
 class LaunchpadTrackerTask(object):
     # TODO(dpyzhov): move gerrit iterations to the separate module
